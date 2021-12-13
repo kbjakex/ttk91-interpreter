@@ -6,6 +6,7 @@
 
 #include "types.hpp"
 #include "compiler.hpp"
+#include "interpreter.hpp"
 
 std::string read_file(const char *filename) {
     std::ifstream stream(filename, std::ios::in | std::ios::binary);
@@ -29,27 +30,31 @@ std::string read_file(const char *filename) {
 
 #include <chrono>
 
-bool compile_file(const char *filename, CompilationResult &out) {
+bool compile_file(const char *filename, Program &out) {
     auto bytes = read_file(filename);
     
     // To lowercase
     for (auto &c : bytes) c = std::tolower(c);
     
-    u32 sum{};
-    auto start = std::chrono::steady_clock::now();
-    for (int i = 0; i < 100'000; ++i) sum += Compiler::compile(bytes, out);
-    auto end = std::chrono::steady_clock::now();
-    std::printf("Took %.4fus on average\n", (end - start).count() / (100'000.0 * 1'000.0));
-    return sum != 0;
+    return Compiler::compile(bytes, out);
 }
 
 int main() {
-    auto compilation_res = CompilationResult{};
-    if (!compile_file("test.k91", compilation_res)) {
+    auto prog = Program{};
+    if (!compile_file("test.k91", prog)) {
         return 1;
     }
 
     // Optimizer here
+
+    auto runtime = Runtime{};
+    if (!create_runtime(prog, runtime)) {
+        return 1;
+    }
+
+    if (!execute(runtime, 15000000ull)) {
+        return 1;
+    }
 
     return 0;
 }

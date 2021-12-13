@@ -65,6 +65,10 @@ enum class InstructionType : u8 {
 
     SVC,
     IRET, // NOT officially part of the language
+
+    HALT, // NOT officially part of the language
+
+    NUM_INSTRUCTIONS // not an instruction.
 };
 
 enum class AddressingMode {

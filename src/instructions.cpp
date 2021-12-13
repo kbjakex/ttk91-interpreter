@@ -53,6 +53,8 @@ static tsl::robin_map<u8, std::string_view> &instr_name_table() {
 
         { u8(InstructionType::SVC), "SVC" },
         { u8(InstructionType::IRET), "IRET" }, // Not officially part of the language  
+
+        { u8(InstructionType::HALT), "HALT" }, // Not officially part of the language
     };
     return table;
 }

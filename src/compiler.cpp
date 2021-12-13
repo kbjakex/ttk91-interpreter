@@ -429,6 +429,25 @@ namespace InstructionParserFns {
             return make_jump_instr(type, param, 0, ctx);
         }
 
+        static Instruction parse_svc(InstructionType, std::string_view line, CompilerCtx &ctx) {
+            std::string_view reg_str{};
+            std::string_view dst_str{}; // destination address/label
+            if (!read_dst_src_strings(line, reg_str, dst_str)) {
+                return invalid_instruction();
+            }
+
+            u32 reg{};
+            if (!parse_register(reg_str, reg)) {
+                return invalid_instruction();
+            }
+
+            if (dst_str == "=halt") {
+                return make_instr(InstructionType::HALT, reg, 0, 0, 0);
+            }
+
+            return make_jump_instr(InstructionType::SVC, dst_str, reg, ctx);
+        }
+
         static Instruction parse_nop(InstructionType, std::string_view, CompilerCtx&) {
             return make_instr(InstructionType::NOP, 0, 0, 0, 0);
         }
@@ -499,8 +518,8 @@ namespace InstructionParserFns {
 
     using ParserTable = tsl::robin_map<std::string_view, Parser>;
 
-    static ParserTable table() {
-        return {
+    static ParserTable &table() {
+        static auto tbl = ParserTable {
             /*Special*/ #define S(_ty, _fn) Parser{ InstructionType::_ty, Detail::_fn }
             /*Common */ #define C(_ty) Parser{ InstructionType::_ty, Detail::make_common_instr }
             /*Jump 1 */ #define J1(_ty) Parser{ InstructionType::_ty, Detail::parse_jump1_instr }
@@ -551,7 +570,7 @@ namespace InstructionParserFns {
             { "pushr",  S(PUSHR, parse_pushr_popr) },
             { "popr",   S(POPR, parse_pushr_popr)  },
 
-            { "svc",    J1(SVC)     },
+            { "svc",    S(SVC, parse_svc) },
             { "iret",   C(IRET)     }, // NOT officially part of the language
 
             #undef S
@@ -559,6 +578,8 @@ namespace InstructionParserFns {
             #undef J1
             #undef J2
         };
+
+        return tbl;
     } 
 }
 
@@ -694,9 +715,9 @@ static u32 resolve_jumps(CompilerCtx &ctx) {
     return num_errors;
 }
 
-bool Compiler::compile(std::string_view src, CompilationResult &out) {
+bool Compiler::compile(std::string_view src, Program &out) {
     auto ctx = CompilerCtx {};
-    auto parsers = InstructionParserFns::table();
+    auto &parsers = InstructionParserFns::table();
 
     // Pseudoinstructions must be at the top, parse them first
     while (parse_pseudoinstruction(ctx, src)) {}
@@ -719,7 +740,7 @@ bool Compiler::compile(std::string_view src, CompilationResult &out) {
 
     out.instructions = ctx.instructions;
     out.constants = ctx.sym_table.values;
-    out.reserved_bytes = ctx.sym_table.total_num_bytes;
+    out.data_section_bytes = ctx.sym_table.total_num_bytes;
 
     return true;
 }
