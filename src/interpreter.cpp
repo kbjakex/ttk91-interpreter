@@ -186,7 +186,7 @@ static void print_timings(u64 exec_time, u64 iterations) {
 
             std::printf("Warning: Low execution time might result in inaccurate benchmark results.\n");
             std::printf("Try increasing iteration count with --bench-iterations.\n");
-            std::printf("Suggestion: --bench-iterations=%llu\n", suggested_iter);
+            std::printf("Suggestion for this program: --bench-iterations=%llu\n", suggested_iter);
         }
     }
 }

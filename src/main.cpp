@@ -7,6 +7,7 @@
 #include "types.hpp"
 #include "compiler.hpp"
 #include "interpreter.hpp"
+#include "options.hpp"
 
 std::string read_file(const char *filename) {
     std::ifstream stream(filename, std::ios::in | std::ios::binary);
@@ -39,9 +40,14 @@ bool compile_file(const char *filename, Program &out) {
     return Compiler::compile(bytes, out);
 }
 
-int main() {
+int main(int argc, char **argv) {
+    auto opts = Options{};
+    if (!parse_options(argc, argv, opts)) {
+        return 1;
+    }
+
     auto prog = Program{};
-    if (!compile_file("test.k91", prog)) {
+    if (!compile_file(opts.filename, prog)) {
         return 1;
     }
 
@@ -52,7 +58,7 @@ int main() {
         return 1;
     }
 
-    if (!execute(runtime, 15000000ull)) {
+    if (!execute(runtime, opts.benchmark_iterations)) {
         return 1;
     }
 

@@ -282,7 +282,6 @@ namespace InstructionParserFns {
 
             // 2. Figure out if there's an index, a register, or a symbol
             bool found_register = false;
-            bool found_symbol = false;
             if (std::isdigit(str[0])) {
                 if (!parse_address_or_immediate(str, address))
                     return false; // error messages in parse_address_or_immediate
@@ -300,7 +299,6 @@ namespace InstructionParserFns {
                     found_register = true;
                 } else {
                     // Not an address, not a register -> must be a symbol
-                    found_symbol = true;
                     if (!resolve_symbol(sym, ctx, address)) {
                         std::printf("Error: Variable or symbol '%.*s' does not exist\n", (int)sym_len, sym.data());
                         return false;
