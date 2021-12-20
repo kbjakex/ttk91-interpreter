@@ -139,7 +139,6 @@ bool execute(Runtime &rt, Options &opts) {
 
     // Per cycle values
     i32 value{};
-    u32 opcode{};
 
 Lstart:
     remaining_executions -= 1;
@@ -148,11 +147,10 @@ Lstart:
     u32 executed_instructions = 0;
 
     while (true) {
-        //std::printf("PC: %d. ", (int)(pc - &instructions[0]));
         executed_instructions += 1;
         u32 ins = *pc++;
-        //debug_print(ins);
-        opcode = decode_opcode(ins);
+        
+        i32 opcode = decode_opcode(ins);
         auto op = INS_JUMP_TABLE[opcode];
         
         value = decode_value(ins);
@@ -167,20 +165,16 @@ Lstart:
         goto *VAL_JUMP_TABLE[decode_addrm(ins)];
 
         Lload_immediate_val: // 0 memory accesses :)
-        //std::printf("got immediate: %d\n", value);
         goto *op;
 
         Lload_register_val: // 1 *safe* memory access :I
         value += src;
-        //std::printf("got from register: %d\n", value);
         goto *op;
 
         Lload_direct_val: // 2 accesses, 1 unsafe :(
         value += src;
-        //std::printf("VL %d, RG %d\n", value, src);
         if (u32(value) > highest_address) goto Leout_of_bounds;
         value = mem[value];
-        //std::printf("got direct %d from address %d\n", value, (int)(value_ptr - mem));
         goto *op;
 
         Lload_indirect_val: // 3 accesses, 2 unsafe >:(
@@ -191,7 +185,6 @@ Lstart:
         if (u32(value) > highest_address) goto Leout_of_bounds;
 
         value = mem[value];
-        //std::printf("got indirect: %d\n", value);
         goto *op;
 
         //
@@ -200,12 +193,10 @@ Lstart:
         //
 
         Lop_load:
-        //std::printf("Loaded value %d to address %lld\n", value, DST_ADDR(ins));
         dst = value;
         continue;
 
         Lop_store:
-        //std::printf("Writing %d to address %d\n", dst, value);
         mem[value] = dst;
         continue;
 
@@ -220,7 +211,6 @@ Lstart:
         
         Lop_mod: 
         if (value == 0) goto Ledivision_by_zero;
-        //std::printf("%d %% %d = %d\n", dst, value, dst % value);
         dst %= value;
         continue;
 
@@ -234,7 +224,6 @@ Lstart:
 
         Lop_comp:
         comp_result = dst - value;
-        //std::printf("Comp(%d, %d) result: %d\n", dst, value, comp_result);
         continue;
 
         Lop_jump:  
@@ -254,7 +243,6 @@ Lstart:
         
         Lop_jpos:  
         if (u64(value) > num_instructions) goto Leinvalid_jump_address;
-        //std::printf("JPOS: value %d, reg %d, reg value: %d\n", value, i32(DST_ADDR(ins)), dst);
         if (dst > 0) pc = &instructions[0] + u64(value);
         continue;
         
@@ -308,27 +296,23 @@ Lstart:
         mem[++sp] = pc - &instructions[0]; // Store old PC
         mem[++sp] = fp;                    // Store old FP
         pc = &instructions[0] + value;
-        //std::printf("FP %d -> %d\n", (int)(fp), (int)(sp));
         fp = sp;
         continue;
 
         Lop_exit: 
         fp = mem[sp--];
         pc = mem[sp--] + &instructions[0];
-        //std::printf("EXIT: fp: %d, pc: %d, value: %d\n", fp, (int)(pc - &instructions[0]), value);
         sp -= value;
         if (sp < stack_start_idx) goto Lestack_underflow;
         continue;
 
         Lop_push:  
-        //std::printf("Pushing value %d\n", value);
         mem[++sp] = value;
         if (sp >= stack_end_idx) goto Lestack_overflow;
         continue;
         
         Lop_pop:
         if (sp < stack_start_idx) goto Lestack_underflow;
-        //std::printf("Popping value %d to register %lld\n", mem[sp], i64(SRC_ADDR(ins)));
         src = mem[sp--];
         continue;
 
@@ -539,7 +523,6 @@ bool create_runtime(Program &program, Runtime &out, Options &options) {
 
     for (const auto &constant : program.constants) {
         out.memory[constant.address + std::size_t(Register::NUM_REGISTERS)] = constant.value;
-        //std::printf("Wrote value %d to address %d\n", constant.value, constant.address);
     }
 
     out.instructions = program.instructions;

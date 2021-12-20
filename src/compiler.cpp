@@ -12,10 +12,6 @@
 #include "types.hpp"
 #include "options.hpp"
 
-/* static void print(std::string_view str) {
-    std::cout << std::quoted(str) << "\n";
-} */
-
 // str.substr() does bounds checks that are redundant here
 static std::string_view substring(std::string_view str, std::size_t start, std::size_t end) {
     return std::string_view { str.data() + start, end - start };
@@ -28,12 +24,6 @@ static std::string_view substring(std::string_view str, std::size_t start) {
 static void skip_spaces(std::string_view &str) {
     while (!str.empty() && std::isspace(str[0])) str = substring(str, 1);
 }
-
-/* static void skip_to_next_line(std::string_view &str) {
-    while (!str.empty() && str[0] != '\n') str = substring(str, 1);
-
-    if (!str.empty()) str = substring(str, 1);
-} */
 
 static bool is_identifier_char(char c) {
     // Allow a-zA-Z0-9
@@ -69,34 +59,6 @@ static bool pop_word(std::string_view &str, std::string_view &out) {
     return true;
 }
 
-/* static bool pop_line(std::string_view &str, std::string_view &out) {
-    // Skip spaces and empty lines (note std::isspace('\n') == true)
-    while (!str.empty()) {
-        skip_spaces(str);
-
-        if (str.empty()) return false;
-
-        std::size_t newline = str.find_first_of('\n');
-        if (newline == str.npos) newline = str.length();
-
-        std::string_view line = substring(str, 0, newline);
-        str = substring(str, newline + 1);
-
-        std::size_t comment = line.find_first_of(';');
-        if (comment != str.npos) {
-            line = substring(line, 0, comment);
-        }
-
-        while (!line.empty() && std::isspace(line.back())) line = substring(line, 0, line.length() - 1);
-
-        if (line.empty()) continue;
-
-        out = line;
-        return true;
-    }
-    return false;
-} */
-
 static std::vector<std::string_view> to_lines(std::string_view str) {
     auto lines = std::vector<std::string_view>{};
 
@@ -123,14 +85,6 @@ static std::vector<std::string_view> to_lines(std::string_view str) {
 
     return lines;
 }
-
-// TODO
-enum Extensions : u32 {
-    CHAR_CRT            = 1 << 1, // Support for `OUT RX, =CCRT` to print characters
-    BIN_HEX_LITERALS    = 1 << 2, // Support for literals in binary and hex (0b110, 0xFF)
-    CHAR_KBD            = 1 << 3, // Support for `IN, RX, =CKBD` for character input, and
-                                  // `IN, RX, =CKBD_NIO` for non-blocking character input
-};
 
 // Variables must be declared before code, but that is not possible for jumps.
 // Because of this, the jump address for jumps to the future need to be
@@ -219,7 +173,6 @@ public:
         std::printf("\n");
 
         char buf[128];
-//        std::printf("Underline start: %d, length: %d\n", (int)line_start, (int)line_len);
         if (line_len > 0) {
             for (std::size_t i = 0; i < line_start; ++i) buf[i] = ' ';
             for (std::size_t i = 0; i < line_len; ++i) buf[i + line_start] = '~';
@@ -304,7 +257,6 @@ namespace InstructionParserFns {
             // several space-separated parts.
             if (line.empty()) {
                 std::size_t pos = line.data() - ctx.logging.current_line_start;
-                //std::printf("Pos: %llu - %llu = %llu\n", line.data(), ctx.logging.current_line_start, pos);
                 Message::error(ctx)
                     .underline_start(pos + line.length() + 1)
                     .underline_len(8)
@@ -390,12 +342,9 @@ namespace InstructionParserFns {
         }
 
         static bool parse_register(CompilerCtx &ctx, std::string_view &word, Register &out) {
-            //std::printf("Reg: '%.*s' %d\n", (int)word.length(), word.data(), (int)word.length());
-
             std::size_t reg_len{};
             if (!try_parse_register(ctx, word, reg_len, out)) {
                 if (word.length() < 2) {
-                    //std::printf("Reg: '%.*s' %d\n", (int)word.length(), word.data(), (int)word.length());
                     Message::error(ctx)
                         .underline_code(word)
                         .printf("Error: EOF while parsing register name");
@@ -457,15 +406,12 @@ namespace InstructionParserFns {
 
         // Parse source register, addressing mode and address all at once,
         // because they are inherently related.
-        // NOTE: "str" is expected to contain no newlines. As in, it should be a single line at most.
         static bool parse_src_address_mode(std::string_view str, CompilerCtx &ctx, Register &src_out, AddressMode &addr_mode_out, i16 &addr_out) {
             AddressMode addr_mode{};
             Register src{};
             i16 address{};
 
             skip_spaces(str);
-
-            //std::printf("Second: '%.*s'\n", (int)str.length(), str.data());
 
             // 1. Figure out the addressing mode
             if (str[0] == '=') addr_mode = AddressMode::IMMEDIATE;
@@ -493,13 +439,10 @@ namespace InstructionParserFns {
                 
                 skip_spaces(str);
             } else {
-                //std::printf("Here\n");
                 // Symbol or register
                 std::size_t sym_len = 0;
                 while (sym_len < str.length() && str[sym_len] != '(' && !std::isspace(str[sym_len])) sym_len += 1;
                 auto sym = substring(str, 0, sym_len);
-
-                //std::printf("Sym or reg: '%.*s'\n", (int)sym_len, sym.data());
 
                 if (std::size_t reg_len{}; try_parse_register(ctx, str, reg_len, src) && reg_len == sym_len) {
                     found_register = true;
@@ -566,21 +509,15 @@ namespace InstructionParserFns {
             src_out = src;
             addr_mode_out = addr_mode;
             addr_out = address;
-
-            //std::printf("Addressing mode: %d\n", addr_mode_out);
-
             return true;
         }
 
         static void make_common_instr(InstructionType type, std::string_view line, CompilerCtx &ctx) {
             std::string_view dst_unparsed{};
             std::string_view src_unparsed{};
-            //std::printf("make_common_instr, line: '%.*s' %d\n", (int)line.length(), line.data(), (int)line.length());
             if (!read_dst_src_strings(ctx, line, dst_unparsed, src_unparsed)) {
                 return;
             }
-
-            //std::printf("dst/src:\n"); print(dst_unparsed); print(src_unparsed);
 
             Register dst{};
             if (!parse_register(ctx, dst_unparsed, dst)) {
@@ -640,9 +577,10 @@ namespace InstructionParserFns {
             add_instruction(ctx, type, opt_reg, address);
         }
 
-        // Category 1: instead of looking at the state register, these jump instructions
-        // have a register parameter and act according to the value stored there.
         static void parse_jump1_instr(InstructionType type, std::string_view line, CompilerCtx &ctx) {
+            // Category 1: instead of looking at the state register, these jump instructions
+            // have a register parameter and act according to the value stored there.
+
             std::string_view reg_str{};
             std::string_view dst_str{}; // destination address/label
             if (!read_dst_src_strings(ctx, line, reg_str, dst_str)) {
@@ -971,10 +909,6 @@ static bool parse_pseudoinstruction(CompilerCtx &ctx, std::string_view line) {
     std::string_view type_str{};
     if (!pop_word(line, name) || !pop_word(line, type_str)) return false;
     
-/*     std::printf("PS: Name '%.*s' (%d), type '%.*s' (%d)\n",
-        (int)name.length(), name.data(), (int)name.length(),
-        (int)type_str.length(), type_str.data(), (int)type_str.length()
-    ); */
     if (type_str != "dc" && type_str != "ds" && type_str != "equ") {
         return false;
     }
@@ -1029,8 +963,6 @@ static bool parse_pseudoinstruction(CompilerCtx &ctx, std::string_view line) {
         ctx.sym_table.total_num_bytes += 4 * temp;
     }
 
-    //std::printf("'%.*s'\t<- '%d'\n", (int) name.length(), name.data(), value);
-
     if (!ctx.sym_table.symbols.try_emplace(std::string{ name }, value).second) {
         Message::error(ctx)
             .underline_code(name)
@@ -1046,8 +978,6 @@ using ParserTable = InstructionParserFns::ParserTable;
 
 // Returns false when error
 static void parse_line(std::string_view line, CompilerCtx &ctx, ParserTable &parsers) {
-    //std::printf("\nParsing line \"%.*s\"\n", (int)line.length(), line.data());
-
     std::string_view word{};
     if (!pop_word(line, word)) {
         return;
@@ -1151,8 +1081,6 @@ bool Compiler::compile(std::string_view file_name, std::string source_code, Prog
     for (std::size_t i = 0; i < lines.size(); ++i) {
         std::string_view line = lowercase(lines[i], buffer);
         if (line.empty()) continue;
-
-        //print(line);
 
         ctx.logging.current_line_num = i;
         ctx.logging.current_line_start = line.data();

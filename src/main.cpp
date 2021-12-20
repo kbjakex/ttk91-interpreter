@@ -10,29 +10,36 @@
 #include "interpreter.hpp"
 #include "options.hpp"
 
-std::string read_file(const char *filename) {
+bool read_file(const char *filename, std::string &out) {
     std::ifstream stream(filename, std::ios::in | std::ios::binary);
     if (stream) {
-        auto buf = std::string();
         stream.seekg(0, std::ios::end);
-        buf.resize(std::size_t(stream.tellg()) + 1);
+        out.clear();
+        out.resize(std::size_t(stream.tellg()) + 1);
         stream.seekg(0, std::ios::beg);
-        stream.read(reinterpret_cast<char*>(&buf[0]), buf.size()-1);
+        stream.read(reinterpret_cast<char*>(&out[0]), out.size()-1);
         stream.close();
 
-        buf[buf.size()-1] = '\n';
-        return buf;
+        out[out.size()-1] = '\n';
+        return true;
     }
-    return {};
+    return false;
 }
 
-// FIXME. std::tolower has many problems such as being UB outside ASCII range,
+// Something for the future:
+// std::tolower has many problems such as being UB outside ASCII range,
 // and doing an incorrect job for anything beyond ASCII. And being slow.
 // Pull in ICU to do the transformation correctly.
 
 bool compile_file(const char *filename, Program &out) {
+    std::string bytes{};
+    if (!read_file(filename, bytes)) {
+        std::printf("Error: File \"%s\" does not exist\n", filename);
+        return false;
+    }
+
     std::string_view name{ filename, std::strlen(filename) };
-    return Compiler::compile(name, read_file(filename), out);
+    return Compiler::compile(name, std::move(bytes), out);
 }
 
 int main(int argc, char **argv) {
@@ -45,8 +52,6 @@ int main(int argc, char **argv) {
     if (!compile_file(opts.filename, prog)) {
         return 1;
     }
-
-    // for (auto &ins : prog.instructions) debug_print(ins);
 
     if (opts.dry_run) {
         std::printf("Dry run finished\n");
