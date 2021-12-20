@@ -1,20 +1,20 @@
 
-DEBUG BUILDS
+DEBUG BUILDS:
 Might give a sane error when things go wrong! But also atrociously slow
 
 Linux:
-clang++ src/main.cpp src/compiler.cpp src/instructions.cpp src/interpreter.cpp src/options.cpp -o ttkci -std=c++2a -Wall -Wextra -Wpedantic -Wno-gnu-label-as-value -fsanitize=address,undefined -g
+clang++ src/main.cpp src/compiler.cpp src/instructions.cpp src/interpreter.cpp src/options.cpp -o ttkc -std=c++2a -Wall -Wextra -Wpedantic -Wno-gnu-label-as-value -fsanitize=address,undefined -g
 
 Windows:
-clang++ src/main.cpp src/compiler.cpp src/instructions.cpp src/interpreter.cpp src/options.cpp -o ttkci.exe -std=c++2a -Wall -Wextra -Wpedantic -Wno-gnu-label-as-value -g
+clang++ src/main.cpp src/compiler.cpp src/instructions.cpp src/interpreter.cpp src/options.cpp -o ttkc.exe -std=c++2a -Wall -Wextra -Wpedantic -Wno-gnu-label-as-value -g
 
 
-RELEASE BUILD:
-Crash faster!
+RELEASE BUILDS:
+Crash faster! :^)
 For assembly output, add -S -masm-intel
 
 Linux:
-clang++ src/main.cpp src/compiler.cpp src/instructions.cpp src/interpreter.cpp src/options.cpp -o ttkci -std=c++2a -Wall -Wextra -Wpedantic -Wno-gnu-label-as-value -O3 -march=native -DNDEBUG
+clang++ src/main.cpp src/compiler.cpp src/instructions.cpp src/interpreter.cpp src/options.cpp -o ttkc -std=c++2a -Wall -Wextra -Wpedantic -Wno-gnu-label-as-value -O3 -march=native -DNDEBUG
 
 Windows:
-clang++ src/main.cpp src/compiler.cpp src/instructions.cpp src/interpreter.cpp src/options.cpp -o ttkci.exe -std=c++2a -Wall -Wextra -Wpedantic -Wno-gnu-label-as-value -O3 -march=native -DNDEBUG
+clang++ src/main.cpp src/compiler.cpp src/instructions.cpp src/interpreter.cpp src/options.cpp -o ttkc.exe -std=c++2a -Wall -Wextra -Wpedantic -Wno-gnu-label-as-value -O3 -march=native -DNDEBUG
