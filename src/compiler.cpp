@@ -1082,14 +1082,14 @@ static void parse_line(std::string_view line, CompilerCtx &ctx, ParserTable &par
             return;
         }
 
-
-        //print(word);
         it = parsers.find(word);
     }
 
     if (it != parsers.end()) {
         // See InstructionParserFns::table() for which function is executed
         (it->second)(line, ctx);
+
+        ctx.logging.instr_to_line_table.push_back(ctx.logging.current_line_num);
     } else {
         Message::error(ctx)
             .underline_code(word)
@@ -1166,7 +1166,7 @@ bool Compiler::compile(std::string_view file_name, std::string source_code, Prog
 
     auto errors = ctx.logging.num_errors;
     if (errors > 0) {
-        std::printf("Found %d error%s, aborting\n", errors, errors == 1 ? "" : "s");
+        std::printf("\nFound %d error%s, aborting\n", errors, errors == 1 ? "" : "s");
         return false;
     }
 
@@ -1182,6 +1182,8 @@ bool Compiler::compile(std::string_view file_name, std::string source_code, Prog
     out.constants = ctx.sym_table.values;
     out.data_section_bytes = ctx.sym_table.total_num_bytes;
     out.source_code = std::move(source_code);
+    out.source_code_lines = std::move(ctx.logging.lines);
+    out.instr_idx_to_line_idx = std::move(ctx.logging.instr_to_line_table);
 
     return true;
 }

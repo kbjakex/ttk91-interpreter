@@ -8,10 +8,13 @@
 #include "instructions.hpp"
 #include "compiler.hpp"
 #include "options.hpp"
+#include "program.hpp"
 
 struct Runtime {
     std::span<u32> instructions;
     std::vector<i32> memory;
+
+    Program *program_ref;
 };
 
 bool create_runtime(Program &program, Runtime &out, Options &options);

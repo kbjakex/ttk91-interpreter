@@ -5,26 +5,35 @@
 #include <iostream>
 #include <cmath>
 
-#define REG(_reg) mem[-u64(Register::_reg)]
-#define DST_ADDR(_instruction) -u64(decode_dst(_instruction))
-#define SRC_ADDR(_instruction) -u64(decode_src(_instruction))
+#define REG(_reg) *(mem-i64(Register::_reg))
+#define DST_ADDR(_instruction) -i64(decode_dst(_instruction))
+#define SRC_ADDR(_instruction) -i64(decode_src(_instruction))
+#define DST_REG(_ins) *(mem+DST_ADDR(ins))
+#define SRC_REG(_ins) *(mem+SRC_ADDR(ins))
 
 __attribute__((noinline))
 static void print_timings(u64 exec_time, u64 iterations);
 
 __attribute__((noinline))
-static void op_print(i32 *__restrict__ mem, u32 ins, i32 value) {
-    std::printf("%d\n", mem[DST_ADDR(ins)]);
+static void print_faulty_instruction(u32 instruction_idx, Program &prog);
 
+__attribute__((noinline))
+static void print_oob_access_report(u32 instruction_idx, Runtime &rt);
+
+__attribute__((noinline))
+static void op_print(i32 *mem, u32 ins, i32 value) {
+    std::printf("%d\n", DST_REG(ins));
+
+    // TODO add other modes of printing and don't assume value == CRT
     (void)value;
 }
 
 __attribute__((noinline))
-static void op_input(i32 *__restrict__ mem, u32 ins, i32 value) {
+static void op_input(i32 *mem, u32 ins, i32 value) {
     std::printf("(Requesting input)\n> ");
     i32 input;
     std::cin >> input;
-    mem[DST_ADDR(ins)] = input;
+    DST_REG(ins) = input;
 
     (void)value;
 }
@@ -32,13 +41,14 @@ static void op_input(i32 *__restrict__ mem, u32 ins, i32 value) {
 bool execute(Runtime &rt, Options &opts) {
     u32 const *const instructions = rt.instructions.data();
     u32 const *pc = &instructions[0];
+    u64 num_instructions = rt.instructions.size();
 
-    i32 *__restrict__ mem = rt.memory.data() + u64(Register::NUM_REGISTERS);
-    i32 *__restrict__ mem_end = rt.memory.data() + rt.memory.size();
-
+    i32 *mem = rt.memory.data() + u64(Register::NUM_REGISTERS);
+    i32 *mem_end = rt.memory.data() + rt.memory.size();
+    u32 highest_address = u32(mem_end - mem);
 
     // Cut off a couple indices from both ends to make over/underflow checks easier/faster. 
-    // Nobody cares about 4 slots anyways :)
+    // Nobody cares about 16 slots anyways :)
     i32 stack_start_idx = rt.memory.size() - opts.stack_size + 8;
     i32 stack_end_idx = stack_start_idx + opts.stack_size - 16;
 
@@ -123,35 +133,37 @@ bool execute(Runtime &rt, Options &opts) {
     auto start = std::chrono::steady_clock::now();
 
     u64 remaining_executions = opts.benchmark_iterations;
-    std::printf("Running %llu iterations\n", remaining_executions);
+    if (remaining_executions != 1) {
+        std::printf("Running %llu iterations\n\n", remaining_executions);
+    }
 
     // Per cycle values
     i32 value{};
-    i32 *value_ptr{};
     u32 opcode{};
 
 Lstart:
     remaining_executions -= 1;
     pc = &instructions[0];
 
-    u32 n_ins = 0;
+    u32 executed_instructions = 0;
 
     while (true) {
-        //std::printf("\nFetching instruction\n");
         //std::printf("PC: %d. ", (int)(pc - &instructions[0]));
-        n_ins += 1;
+        executed_instructions += 1;
         u32 ins = *pc++;
         //debug_print(ins);
-        // std::printf("(Opcode %d)\n", (int)decode_opcode(ins));
         opcode = decode_opcode(ins);
         auto op = INS_JUMP_TABLE[opcode];
         
         value = decode_value(ins);
 
-        i32 &__restrict__ src = mem[SRC_ADDR(ins)];
-        i32 &__restrict__ dst = mem[DST_ADDR(ins)];
+        i32 &src = SRC_REG(ins);
+        i32 &dst = DST_REG(ins);
 
-        // std::printf("Decoding value (mode: %d)\n", (int)decode_addrm(ins));
+        //
+        // Start by decoding value, regardless of opcode
+        //
+
         goto *VAL_JUMP_TABLE[decode_addrm(ins)];
 
         Lload_immediate_val: // 0 memory accesses :)
@@ -164,25 +176,28 @@ Lstart:
         goto *op;
 
         Lload_direct_val: // 2 accesses, 1 unsafe :(
-        value_ptr = mem + u32(src + value);
-        if (value_ptr >= mem_end) goto Leout_of_bounds;
-        value = *value_ptr;
+        value += src;
+        //std::printf("VL %d, RG %d\n", value, src);
+        if (u32(value) > highest_address) goto Leout_of_bounds;
+        value = mem[value];
         //std::printf("got direct %d from address %d\n", value, (int)(value_ptr - mem));
         goto *op;
 
         Lload_indirect_val: // 3 accesses, 2 unsafe >:(
-        value_ptr = mem + u32(src) + value;
-        if (value_ptr >= mem_end) goto Leout_of_bounds;
+        value += src;
+        if (u32(value) > highest_address) goto Leout_of_bounds;
 
-        value_ptr = mem + *value_ptr;
-        if (value_ptr >= mem_end) goto Leout_of_bounds;
+        value = mem[value];
+        if (u32(value) > highest_address) goto Leout_of_bounds;
 
-        value = *value_ptr;
+        value = mem[value];
         //std::printf("got indirect: %d\n", value);
         goto *op;
 
+        //
         // OPERATIONS
         // Ordered very approximately from most important to least important
+        //
 
         Lop_load:
         //std::printf("Loaded value %d to address %lld\n", value, DST_ADDR(ins));
@@ -205,6 +220,7 @@ Lstart:
         
         Lop_mod: 
         if (value == 0) goto Ledivision_by_zero;
+        //std::printf("%d %% %d = %d\n", dst, value, dst % value);
         dst %= value;
         continue;
 
@@ -222,69 +238,69 @@ Lstart:
         continue;
 
         Lop_jump:  
-        if (value < 0) goto Lenegative_jump_address;
-        pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        pc = &instructions[0] + u64(value);
         continue;
 
         Lop_jneg:
-        if (value < 0) goto Lenegative_jump_address;
-        if (dst < 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (dst < 0) pc = &instructions[0] + u64(value);
         continue;
         
         Lop_jzer:  
-        if (value < 0) goto Lenegative_jump_address;
-        if (dst == 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (dst == 0) pc = &instructions[0] + u64(value);
         continue;
         
         Lop_jpos:  
-        if (value < 0) goto Lenegative_jump_address;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
         //std::printf("JPOS: value %d, reg %d, reg value: %d\n", value, i32(DST_ADDR(ins)), dst);
-        if (dst > 0) pc = &instructions[0] + value;
+        if (dst > 0) pc = &instructions[0] + u64(value);
         continue;
         
         Lop_jnneg: 
-        if (value < 0) goto Lenegative_jump_address;
-        if (dst >= 0) pc = &instructions[0] + value; 
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (dst >= 0) pc = &instructions[0] + u64(value); 
         continue;
         
         Lop_jnzer:  
-        if (value < 0) goto Lenegative_jump_address;
-        if (dst != 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (dst != 0) pc = &instructions[0] + u64(value);
         continue;
         
         Lop_jnpos: 
-        if (value < 0) goto Lenegative_jump_address;
-        if (dst <= 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (dst <= 0) pc = &instructions[0] + u64(value);
         continue;
 
         Lop_jles:  
-        if (value < 0) goto Lenegative_jump_address;
-        if (comp_result < 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (comp_result < 0) pc = &instructions[0] + u64(value);
         continue;
         
         Lop_jequ:  
-        if (value < 0) goto Lenegative_jump_address;
-        if (comp_result == 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (comp_result == 0) pc = &instructions[0] + u64(value);
         continue;
         
         Lop_jgre:  
-        if (value < 0) goto Lenegative_jump_address;
-        if (comp_result > 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (comp_result > 0) pc = &instructions[0] + u64(value);
         continue;
         
-        Lop_jnles:  
-        if (value < 0) goto Lenegative_jump_address;
-        if (comp_result >= 0) pc = &instructions[0] + value;
+        Lop_jnles:
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (comp_result >= 0) pc = &instructions[0] + u64(value);
         continue;
         
         Lop_jnequ:  
-        if (value < 0) goto Lenegative_jump_address;
-        if (comp_result != 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (comp_result != 0) pc = &instructions[0] + u64(value);
         continue;
         
         Lop_jngre:
-        if (value < 0) goto Lenegative_jump_address;
-        if (comp_result >= 0) pc = &instructions[0] + value;
+        if (u64(value) > num_instructions) goto Leinvalid_jump_address;
+        if (comp_result <= 0) pc = &instructions[0] + u64(value);
         continue;
 
         Lop_call:
@@ -299,7 +315,7 @@ Lstart:
         Lop_exit: 
         fp = mem[sp--];
         pc = mem[sp--] + &instructions[0];
-        //::printf("EXIT: fp: %d, pc: %d, value: %d\n", fp, (int)(pc - &instructions[0]), value);
+        //std::printf("EXIT: fp: %d, pc: %d, value: %d\n", fp, (int)(pc - &instructions[0]), value);
         sp -= value;
         if (sp < stack_start_idx) goto Lestack_underflow;
         continue;
@@ -327,12 +343,12 @@ Lstart:
         continue;
         
         Lop_popr: 
-        REG(R0) = mem[sp--];
-        REG(R1) = mem[sp--];
-        REG(R2) = mem[sp--];
-        REG(R3) = mem[sp--];
-        REG(R4) = mem[sp--];
         REG(R5) = mem[sp--];
+        REG(R4) = mem[sp--];
+        REG(R3) = mem[sp--];
+        REG(R2) = mem[sp--];
+        REG(R1) = mem[sp--];
+        REG(R0) = mem[sp--];
         if (sp < stack_start_idx) goto Lestack_overflow;
         continue;
 
@@ -349,8 +365,9 @@ Lstart:
     }
 
 // Start of error handling spaghetti
-Lenegative_jump_address:
-    std::printf("Execution error: Jump address for instruction #%d was negative (%d)\n", (int)(pc - 1 - &instructions[0]), value);
+Leinvalid_jump_address:
+    std::printf("Execution error: Instruction #%d jumped out of bounds (jump address %d)\n", 
+        (int)(pc - 1 - &instructions[0]), value);
     goto Lprint_faulty_instruction;
 
 Lestack_underflow:
@@ -364,11 +381,7 @@ Lestack_overflow:
     goto Lprint_faulty_instruction;
 
 Leout_of_bounds:
-    std::printf("Execution error: Instruction #%d (%s) accessed memory out of bounds\n",
-        (int)(pc - 1 - &instructions[0]),
-        instruction_name(InstructionType(decode_opcode(*(pc-1)))).data()
-    );
-    std::printf("Address %d\n", value);
+    print_oob_access_report(u32(pc - 1 - &instructions[0]), rt);
     goto Lprint_faulty_instruction;
 
 Ledivision_by_zero:
@@ -380,7 +393,7 @@ Leillegal_instruction:
     goto Lprint_faulty_instruction;
 
 Lprint_faulty_instruction:
-
+    print_faulty_instruction(u32(pc - 1 - &instructions[0]), *rt.program_ref); 
     goto Lhalt_no_repeat;
 // End of error handling spaghetti
 
@@ -390,7 +403,7 @@ Lop_halt:
 Lhalt_no_repeat:
     auto end = std::chrono::steady_clock::now();
 
-    std::printf("Executed %d instructions\n", n_ins);
+    std::printf("\nExecuted %d instructions\n", executed_instructions);
 
     // See create_runtime() at the bottom of this file. Execution should never reach that instruction.
     if (pc == rt.instructions.data() + rt.instructions.size()) {
@@ -450,6 +463,65 @@ static void print_timings(u64 exec_time, u64 iterations) {
     }
 }
 
+__attribute__((noinline))
+static void print_oob_access_report(u32 instruction_idx, Runtime &rt) {
+    // This error is so common it's more than worth it to spend effort on the error report.
+    Program &prog = *rt.program_ref;
+    u32 ins = prog.instructions[instruction_idx];
+    
+    AddressMode addrm = AddressMode(decode_addrm(ins));
+    i16 value = decode_value(ins);
+    Register src = Register(decode_src(ins));
+
+    std::printf("\n");
+    std::printf("Execution error: Instruction #%d (%s) accessed memory out of bounds!\n",
+        instruction_idx,
+        instruction_name(InstructionType(decode_opcode(ins))).data()
+    );
+    std::printf("- Valid addresses are 1 <= address <= %lld.\n", 
+        i64(rt.memory.data() + rt.memory.size()) - i64(Register::NUM_REGISTERS));
+    
+    if (addrm == AddressMode::IMMEDIATE) {
+        std::printf("- Address mode for this instruction is 'immediate'.\n"
+                    "  => Faulty address is stored directly in the instruction.\n"
+                    "  => This address is '%d'.\n", value);
+    }
+    else if (addrm == AddressMode::DIRECT) {
+        i32 reg_val = rt.memory[u64(Register::NUM_REGISTERS) - u64(src)];
+        std::printf("- Address mode for this instruction is 'direct'.\n"
+                    "- Source register %s has value %d, and the offset\n"
+                    "  encoded in the instruction is %d.\n", register_name(src).data(), reg_val, value);
+        std::printf("  => Faulty address is (%d) + (%d) = %d.\n", reg_val, value, reg_val + value);
+    }
+    else if (addrm == AddressMode::INDIRECT) {
+        i32 reg_val = rt.memory[u64(Register::NUM_REGISTERS) - u64(src)];
+        std::printf("- Address mode for this instruction is 'indirect'.\n"
+                    "- Source register %s has value %d, and the offset\n"
+                    "  encoded in the instruction is %d.\n", register_name(src).data(), reg_val, value);
+        std::printf("  => Direct address is (%d) + (%d) = %d.\n", reg_val, value, reg_val + value);
+        if (reg_val + value < 1 || reg_val + value > i32(prog.data_section_bytes)) {
+            std::printf("  .. which is out of bounds, and error occurs here.\n");
+        } else {
+            std::printf("- The address is valid, but the value at this address is\n"
+                        "  %d, which is out of bounds.", rt.memory[u64(Register::NUM_REGISTERS) + reg_val + value]);
+        }
+    }
+}
+
+__attribute__((noinline))
+static void print_faulty_instruction(u32 instruction_idx, Program &prog) {
+    u32 line_num = prog.instr_idx_to_line_idx[instruction_idx];
+    std::string_view line = prog.source_code_lines[line_num];
+
+    std::printf("Error occurred during the execution of the instruction on line %u:\n", line_num + 1);
+    std::printf(
+        "     |\n"
+        "%4u | %.*s\n"
+        "     |\n",
+        line_num+1, (int)line.length(), line.data()
+    );
+}
+
 bool create_runtime(Program &program, Runtime &out, Options &options) {
     // Initialize memory as described in interpreter.hpp
     // Registers have the lowest addresses, then comes program data,
@@ -471,5 +543,6 @@ bool create_runtime(Program &program, Runtime &out, Options &options) {
     }
 
     out.instructions = program.instructions;
+    out.program_ref = &program;
     return true;
 }

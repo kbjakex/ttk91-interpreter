@@ -17,4 +17,5 @@ struct Program {
 
     std::string source_code;
     std::vector<std::string_view> source_code_lines;
+    std::vector<u32> instr_idx_to_line_idx; // see interpreter.cpp
 };

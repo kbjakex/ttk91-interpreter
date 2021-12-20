@@ -1,4 +1,11 @@
-; Fibonacci number calculator example.
+
+; Generic test
+
+; Fibonacci number calculator example. 
+; Calculates the ITER:th number from the fibonacci sequence.
+
+; This sequence of instructions is not actually optimal!
+; See if you can find a faster way.
 
 ITER equ 50
 
