@@ -1,5 +1,6 @@
 # ttk91-interpreter
 A compiler-interpreter for the TTK91 assembly language developed at Helsinki University (not by me).
+See the "programs" directory for some examples.
 
 ## Goals
 * **Helpful**. Clear, understandable error messages and warnings at both compile time and runtime.
