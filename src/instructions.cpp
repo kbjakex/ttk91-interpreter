@@ -18,28 +18,6 @@ static tsl::robin_map<u8, std::string_view> &instr_name_table() {
         { u8(InstructionType::DIV), "DIV" },
         { u8(InstructionType::MOD), "MOD" },
 
-        { u8(InstructionType::EXT_FADD), "EXT_FADD" },
-        { u8(InstructionType::EXT_FSUB), "EXT_FSUB" },
-        { u8(InstructionType::EXT_FMUL), "EXT_FMUL" },
-        { u8(InstructionType::EXT_FDIV), "EXT_FDIV" },
-        { u8(InstructionType::EXT_FMOD), "EXT_FMOD" },
-
-        { u8(InstructionType::EXT_ITOF), "EXT_ITOF" },
-        { u8(InstructionType::EXT_FTOI), "EXT_FTOI" },
-
-        { u8(InstructionType::EXT_SQRTF), "EXT_SQRTF" },
-        { u8(InstructionType::EXT_RSQRTF), "EXT_RSQRTF" },
-        { u8(InstructionType::EXT_SINF), "EXT_SINF" },
-        { u8(InstructionType::EXT_COSF), "EXT_COSF" },
-        { u8(InstructionType::EXT_TANF), "EXT_TANF" },
-        { u8(InstructionType::EXT_ASINF), "EXT_ASINF" },
-        { u8(InstructionType::EXT_ACOSF), "EXT_ACOSF" },
-        { u8(InstructionType::EXT_ATANF), "EXT_ATANF" },
-        { u8(InstructionType::EXT_ABSF), "EXT_ABSF" },
-        { u8(InstructionType::EXT_LOG2F), "EXT_LOG2F" },
-        { u8(InstructionType::EXT_LOG10F), "EXT_LOG10F" },
-        { u8(InstructionType::EXT_LNF), "EXT_LNF" },
-
         { u8(InstructionType::AND), "AND" },
         { u8(InstructionType::OR), "OR" },
         { u8(InstructionType::XOR), "XOR" },

@@ -30,8 +30,8 @@ static void op_input(i32 *__restrict__ mem, u32 ins, i32 value) {
 }
 
 bool execute(Runtime &rt, Options &opts) {
-    const u32 const *instructions = rt.instructions.data();
-          u32 const *pc           =   &instructions[0];
+    u32 const *const instructions = rt.instructions.data();
+    u32 const *pc = &instructions[0];
 
     i32 *__restrict__ mem = rt.memory.data() + u64(Register::NUM_REGISTERS);
     i32 *__restrict__ mem_end = rt.memory.data() + rt.memory.size();
@@ -65,28 +65,6 @@ bool execute(Runtime &rt, Options &opts) {
         &&Lop_mul,  
         &&Lop_div,  
         &&Lop_mod, 
-
-        &&Lop_fadd, 
-        &&Lop_fsub, 
-        &&Lop_fmul, 
-        &&Lop_fdiv, 
-        &&Lop_fmod, 
-
-        &&Lop_itof, // int to float
-        &&Lop_ftoi, // float to int
-
-        &&Lop_sqrtf,
-        &&Lop_rsqrtf, // 1/sqrt(x)
-        &&Lop_sinf,
-        &&Lop_cosf,
-        &&Lop_tanf,
-        &&Lop_asinf,
-        &&Lop_acosf,
-        &&Lop_atanf,
-        &&Lop_log2f,
-        &&Lop_log10f,
-        &&Lop_lnf,
-        &&Lop_absf,  
 
         &&Lop_and,  
         &&Lop_or,   
@@ -126,9 +104,13 @@ bool execute(Runtime &rt, Options &opts) {
         &&Lop_halt,
 
         // Fill remaining possible opcodes with error handling
-        &&Leillegal_instruction, &&Leillegal_instruction,
-        &&Leillegal_instruction, &&Leillegal_instruction,
-        &&Leillegal_instruction, &&Leillegal_instruction
+        &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction,
+        &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction,
+        &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction,
+        &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction,
+        &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction,
+        &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction, &&Leillegal_instruction,
+        &&Leillegal_instruction,
     };
 
     constexpr void* VAL_JUMP_TABLE[] = {
@@ -171,17 +153,6 @@ Lstart:
 
         // std::printf("Decoding value (mode: %d)\n", (int)decode_addrm(ins));
         goto *VAL_JUMP_TABLE[decode_addrm(ins)];
-
-        /*
-    1   LOAD R1, =2         value = decode_imm(ins)
-    2   LOAD R1, =2(R2)     value = memory[-decode_dst(ins)] + decode_imm(ins)
-
-        (LOAD R1, R2        value = memory[memory[-decode_dst(ins)]]) <=>
-    3   LOAD R1, 2(R2)      value = memory[memory[-decode_dst(ins)] + decode_imm(ins)]
-
-    4   (LOAD R1, @R2       value = memory[memory[memory[-decode_dst(ins)]]]) <=>
-        LOAD R1, @2(R2)     value = memory[memory[memory[-decode_dst(ins)] + decode_imm(ins)]]
-        */
 
         Lload_immediate_val: // 0 memory accesses :)
         //std::printf("got immediate: %d\n", value);
@@ -244,12 +215,6 @@ Lstart:
         Lop_shl: dst <<= value; continue;
         Lop_shr: dst = i32(u32(dst) >> value); continue; // same cost as shra once compiled
         Lop_shra: dst >>= value; continue;
-
-        Lop_fadd: continue;
-        Lop_fsub: continue;
-        Lop_fmul: continue;
-        Lop_fdiv: continue;
-        Lop_fmod: continue;
 
         Lop_comp:
         comp_result = dst - value;
@@ -321,22 +286,6 @@ Lstart:
         if (value < 0) goto Lenegative_jump_address;
         if (comp_result >= 0) pc = &instructions[0] + value;
         continue;
-
-        Lop_itof:   continue; // int to float 
-        Lop_ftoi:   continue; // float to int
-
-        Lop_sqrtf:  continue;
-        Lop_rsqrtf: continue;
-        Lop_sinf:   continue;
-        Lop_cosf:   continue;
-        Lop_tanf:   continue;
-        Lop_asinf:  continue;
-        Lop_acosf:  continue;
-        Lop_atanf:  continue;
-        Lop_log2f:  continue;
-        Lop_log10f: continue;
-        Lop_lnf:    continue;
-        Lop_absf:   continue;
 
         Lop_call:
         if (sp >= stack_end_idx) goto Lestack_overflow;

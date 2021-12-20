@@ -18,7 +18,7 @@ Main    IN R1, =KBD
         OUT R1, =CRT    ; Display value.
         SVC SP, =HALT
 
-Fib     PUSHR SP
+Fib     PUSHR R6
 
         LOAD R1, =0     ; Set loop variable i = 0
         LOAD R2, =0

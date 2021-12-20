@@ -6,8 +6,6 @@
 
 #include "args.hpp"
 
-bool Warnings::reserved_registers = true;
-
 static void print_version() {
     std::printf("Running TTK91 compiler-interpreter (ttkic) version 0.0.1 by kbjakex.\n");
 }
@@ -37,7 +35,6 @@ bool parse_options(int argc, char **argv, Options &out) {
     auto result = Args::parser()
         .add_arg("i", "bench-iterations", out.benchmark_iterations)
         .add_arg("bio", "bench-io", out.bench_io)
-        .add_arg("Wreserved-registers", "Wreserved-registers", Warnings::reserved_registers)
         .add_arg("d", "dry", out.dry_run)
         .add_arg("ss", "stack-size", out.stack_size)
         .add_arg("help", help)
@@ -47,13 +44,11 @@ bool parse_options(int argc, char **argv, Options &out) {
     if (help) {
         print_help();
         std::exit(0);
-        return true;
     }
 
     if (version) {
         print_version();
         std::exit(0);
-        return true;
     }
 
     if (!result.unrecognized_options.empty()) {

@@ -18,7 +18,7 @@
 #define USE_FLAG_COMBOS 0
 
 namespace Detail {
-    bool equals_lowercase(std::string_view lhs, std::string_view rhs) {
+    inline bool equals_lowercase(std::string_view lhs, std::string_view rhs) {
         if (lhs.length() != rhs.length()) return false;
 
         for (std::size_t i = 0; i < lhs.length(); ++i) {
@@ -98,10 +98,10 @@ namespace ArgParsers {
 class Args {
     using CallbackFn = void(void*, std::string_view, std::string_view, std::optional<std::string_view>);
     struct Arg {
-        void *out_ptr;
-        bool is_flag;
         std::optional<std::string_view> error_msg;
         CallbackFn *callback;
+        void *out_ptr;
+        bool is_flag;
     };
 public:
     struct ParseResult {
@@ -120,8 +120,6 @@ public:
         }
 
         auto arg = Arg {
-            .out_ptr = &out,
-            .is_flag = std::is_same_v<T, bool>,
             .error_msg = error_msg,
             .callback = [](void *raw_out_ptr, std::string_view option, std::string_view val, std::optional<std::string_view> error_msg) {
                 T *out_ptr = static_cast<T*>(raw_out_ptr);
@@ -131,7 +129,9 @@ public:
 
                     std::exit(0);
                 }
-            }
+            },
+            .out_ptr = &out,
+            .is_flag = std::is_same_v<T, bool>,
         };
 
         if (!short_form.empty()) arg_map.insert({ short_form, arg });

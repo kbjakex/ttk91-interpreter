@@ -1,28 +1,33 @@
-
-X DS
+; Should give errors for the marked 27 lines
+DS  ; 1
+X DS   ; 2 
 X EQU Y
-Y DS -10
-Z EQU    10
-K EQU 2147483648
+Y DS -10 ; 3
+Z EQU    10 
+K EQU 2147483648 ; 4 (overflow)
 
-main main ADD R0, R1
-ADD
-ADD R0 R1
-ADD R0;R1
-ADD R0  R1
-ADD(R0, R1)
-(ADD)R0,R1
-ADD R0, R1(5)
-ADD R0, R1 5
-ADD R0, 5 R1
-ADD R0, =R1
-ADD R0, 1 + 1
-ADD R0, =0(R1) R0
-ADD R0, R1 R0
-ADD R0 R1
+main main ADD R0, R1 ; 5
+ADD ; 6
+ADD R0 R1 ; 7
+ADD R0;R1 ; 8 (missing param)
+ADD R0  R1 ; 9
+ADD(R0, R1) ; 10
+(ADD)R0,R1 ; 11
+ADD R0, R1(5) ; 12
+ADD R0, R1 5 ; 13
+ADD R0, 5 R1 ; 14
+JUMP Error ; 15 (at the end, undeclared)
+£LABEL JUMP Error ; 16 (£ illegal)
+JUMP 500000000 ; 17 (overflow)
+ADD R0, =R1 ; 18
+ADD R0, 1 + 1 ; 19
+ADD R0, =0(R1) R0 ; 20
+ADD R0, R1 R0 ; 21
+ADD R0 R1 ; 22
  ADD R0 , = 10000 (   R2  )  
-ADD R0,
-ADD R
-ADD R0, =
-ADD R0, 0.5
-ADD ,
+ADD R0, ; 23
+ADD R ; 24
+ADD R0, = ; 25
+ADD R0, 0.5 ; 26
+ADD , ; 27
+Add .

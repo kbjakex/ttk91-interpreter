@@ -4,45 +4,18 @@
 
 #include <string_view>
 
-// Many instructions are split into three forms:
-// _I suffix means the loaded value is immediate, and stored entirely in instruction.
-// _M suffix means load from memory, potentially double indirection
-// _R means loading from a register.
-// As is probably clear, _M is the slow one, _I and _R the fast beasts.
-//
-// Unfortunately, right now, a crude assumption is made about this enum in the compiler:
-// All multi-variant instructions must be in order I, M, R, and must have consecutive integer values.
 enum class InstructionType : u8 {
     STORE,
     LOAD,
 
     IN, OUT,
 
-    // Integer arithmetic
     ADD,
     SUB,
     MUL,
     DIV,
     MOD,
 
-    // Float arithmetic (opt-in extension)
-    EXT_FADD,
-    EXT_FSUB,
-    EXT_FMUL,
-    EXT_FDIV,
-    EXT_FMOD,
-
-    EXT_ITOF, // int to float
-    EXT_FTOI, // float to int
-    // TODO add roundf, floorf, ceilf (rdtoi, fltoi, cltoi?), absf
-
-    EXT_SQRTF,  EXT_RSQRTF,             // sqrt(x), 1/sqrt(x)
-    EXT_SINF,   EXT_COSF,   EXT_TANF,
-    EXT_ASINF,  EXT_ACOSF,  EXT_ATANF,
-    EXT_LOG2F,  EXT_LOG10F, EXT_LNF,
-    EXT_ABSF,
-
-    // Boolean/bit logic
     AND,
     OR,
     XOR,
@@ -53,8 +26,6 @@ enum class InstructionType : u8 {
 
     COMP,
 
-
-    // State register based jumps
     JUMP,
     JNEG,
     JZER,
@@ -63,7 +34,6 @@ enum class InstructionType : u8 {
     JNZER,
     JNPOS,
 
-    // Register based jumps
     JLES,
     JEQU,
     JGRE,
@@ -90,8 +60,8 @@ enum class Register {
     R0 = 0, R1, R2, R3, R4, R5, R6, R7,
     EXT_ZR, // Zero register, always zero
 
-    /* Stack pointer */ SP = R6, 
-    /* Frame pointer */ FP = R7,
+    SP = R6, // Stack pointer
+    FP = R7, // Frame pointer
 
     NUM_REGISTERS // not a register
 };
@@ -109,6 +79,20 @@ enum class OutDevices {
     EXT_CCRT = 2 // Opt-in extension to print characters
 };
 
+
+// Immediate:
+// LOAD R1, =2         value = decode_imm(ins)
+
+// Register:
+// LOAD R1, R2
+// LOAD R1, =2(R2)     value = memory[-decode_dst(ins)] + decode_imm(ins)
+
+// Direct:
+// LOAD R1, 2(R2)      value = memory[memory[-decode_dst(ins)] + decode_imm(ins)]
+
+// Indirect
+// LOAD R1, @R2        value = memory[memory[memory[-decode_dst(ins)] + 0]]
+// LOAD R1, @2(R2)     value = memory[memory[memory[-decode_dst(ins)] + decode_imm(ins)]]
 enum class AddressMode {
     IMMEDIATE = 0,
     REGISTER = 1,
@@ -116,48 +100,9 @@ enum class AddressMode {
     INDIRECT = 3,
 };
 
-// In TTK91, the dst register is the left-most one *except* for STORE.
-// This exception has been translated away and destination is always in the same position
-
-// Useful information:
-// - For IN, device is stored in 'src' register. Target register in 'dst' as usual.
-// - For OUT, device is stored in 'dst' and source register in 'src'.
-// - For pushr/popr, the register is in 'dst'.
-
-// Format
-// CCCCCCCD DDMMSSSS AAAAAAAA AAAAAAAA
-// C = opcode bits (7)
-// D = destination register bits (3)
-// M = addressing mode bits (2)
-// S = source reg bits (4)
-// A = address bits (16)
-
-// Contains opcode, dst register and bits to figure out how to interpret the instruction data
-/* struct InstructionHeader {
-    u16 bits;
-};
-
-struct InstructionData {
-    u32 bits; */
-
-/*     std::size_t opcode() const { return bits >> 25; }
-    i64 dst_reg() const { return (bits >> 22) & 0b111; }
-    i64 src_reg() const { return (bits >> 16) & 0b1111; }
-    u32 address_mode() const { return (bits >> 20) & 0b11; }
-    i32 address() const { return i16(bits); }
-
-    InstructionData &set_opcode(InstructionType type) { bits = (bits & ~0xFE000000) | (u32(type) << 24); return *this; }
-    InstructionData &set_dst_reg(Register reg) { bits = (bits & ~0x1C00000) | (u32(reg) << 21); return *this; }
-    InstructionData &set_src_reg(Register reg) { bits = (bits & ~0xF0000) | (u32(reg) << 16); return *this; }
-    InstructionData &set_address_mode(AddressMode mode) { bits = (bits & ~0x300000) | (mode << 19); return *this; }
-    InstructionData &set_address(i16 address) { bits = (bits & ~0xFFFF) | u32(address & 0xFFFF); return *this; } */
-
-/*     void debug_print(const char *end = "\n") const;
-}; */
-
 void debug_print(u32 instruction, const char *end = "\n");
 
-constexpr u32 INSTRUCTION_BITS = 6;
+constexpr u32 INSTRUCTION_BITS = 6; // 64 opcodes
 constexpr u32 ADDRESS_MODE_BITS = 2;
 constexpr u32 DST_REGISTER_BITS = 3;
 constexpr u32 SRC_REGISTER_BITS = 4; // To fit EXT_ZR
