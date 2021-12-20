@@ -1,11 +1,11 @@
 #pragma once
 
 #include <vector>
-#include <string_view>
+#include <string>
 
 #include "instructions.hpp"
 #include "program.hpp"
 
 namespace Compiler {
-    bool compile(std::string_view textual_code, Program &out);
+    bool compile(std::string_view file_name, std::string textual_code, Program &out);
 }

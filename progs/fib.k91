@@ -1,0 +1,22 @@
+; Fibonacci number calculator example.
+
+ITER equ 50
+
+Main    LOAD R1, =0     ; a
+        LOAD R2, =1     ; b
+        
+        LOAD R3, =0     ; Loop variable i
+
+Loop    LOAD R4, R1     ; c = a
+        ADD R4, R2      ; c = c + b
+        
+        OUT R4, =CRT    ; Print
+
+        LOAD R1, R2
+        LOAD R2, R4
+
+        ADD R3, =1
+        COMP R3, =ITER  ; if i < ITER
+        JNEQU Loop      ; goto Loop
+
+        SVC SP, =HALT

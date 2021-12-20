@@ -1,0 +1,3 @@
+Val1 EQU 5
+Var1 DC 10
+Var2 DS 100000000

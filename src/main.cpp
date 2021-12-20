@@ -3,6 +3,7 @@
 #include <string_view>
 #include <iostream>
 #include <string>
+#include <cstring>
 
 #include "types.hpp"
 #include "compiler.hpp"
@@ -29,15 +30,9 @@ std::string read_file(const char *filename) {
 // and doing an incorrect job for anything beyond ASCII. And being slow.
 // Pull in ICU to do the transformation correctly.
 
-#include <chrono>
-
 bool compile_file(const char *filename, Program &out) {
-    auto bytes = read_file(filename);
-    
-    // To lowercase
-    for (auto &c : bytes) c = std::tolower(c);
-    
-    return Compiler::compile(bytes, out);
+    std::string_view name{ filename, std::strlen(filename) };
+    return Compiler::compile(name, read_file(filename), out);
 }
 
 int main(int argc, char **argv) {
@@ -51,14 +46,21 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // for (auto &ins : prog.instructions) debug_print(ins);
+
+    if (opts.dry_run) {
+        std::printf("Dry run finished\n");
+        return 0;
+    }
+
     // Optimizer here
 
     auto runtime = Runtime{};
-    if (!create_runtime(prog, runtime)) {
+    if (!create_runtime(prog, runtime, opts)) {
         return 1;
     }
 
-    if (!execute(runtime, opts.benchmark_iterations)) {
+    if (!execute(runtime, opts)) {
         return 1;
     }
 

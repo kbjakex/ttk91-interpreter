@@ -2,17 +2,18 @@
 
 #include <vector>
 #include <array>
+#include <span>
 
 #include "types.hpp"
 #include "instructions.hpp"
 #include "compiler.hpp"
+#include "options.hpp"
 
 struct Runtime {
-    std::vector<Instruction> instructions;
+    std::span<u32> instructions;
     std::vector<i32> memory;
-    std::array<i32, 10> registers;
 };
 
-bool create_runtime(Program program, Runtime &out);
+bool create_runtime(Program &program, Runtime &out, Options &options);
 
-bool execute(Runtime &runtime, u64 benchmark_iterations = 1);
+bool execute(Runtime &runtime, Options &options);

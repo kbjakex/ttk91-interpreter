@@ -14,6 +14,9 @@
 
 #include "types.hpp"
 
+// whether `-abc` should be equivalent to `-a -b -c`
+#define USE_FLAG_COMBOS 0
+
 namespace Detail {
     bool equals_lowercase(std::string_view lhs, std::string_view rhs) {
         if (lhs.length() != rhs.length()) return false;
@@ -226,9 +229,13 @@ private:
             return; 
         }
 
+#if USE_FLAG_COMBOS == 1
         for (std::size_t i = 0; i < option.length(); ++i) {
             parse_option(option.substr(i, 1), std::nullopt, result);
         }
+#else
+        return parse_option(option, next, result);
+#endif
     }
 
     void parse_option(std::string_view option, std::optional<std::string_view> next, ParseResult &result) {

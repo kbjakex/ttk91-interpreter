@@ -1,0 +1,51 @@
+
+; Recursion test
+
+; The program asks the user for two inputs (base and exponent), calls the
+; Pow function to compute base^exponent and outputs the result to the user.
+; The program repeats until the user enters 0 as the first parameter.
+
+RetVal EQU -4
+ParamX EQU -3
+ParamY EQU -2
+
+Main    IN R1, =KBD         ; Input base
+        JZER R1, End
+        IN R2, =KBD         ; Input exponent
+
+        PUSH SP, =0         ; Reserve space for return value
+        PUSH SP, R1         ; Base parameter
+        PUSH SP, R2         ; Exponent parameter
+        CALL Pow
+        POP SP, R1          ; Store return value in R1
+        OUT R1, =CRT
+        JUMP Main
+
+End     SVC SP, =HALT
+
+; Function Pow(base, exponent)
+Pow     PUSH SP, R1
+        PUSH SP, R2
+
+        LOAD R2, ParamY(FP)     ; Load Y
+        JPOS R2, Recurse        ; If Y != 0: goto Recurse
+        LOAD R2, =1             ; If Y == 0: return 1
+        STORE R2, RetVal(FP)
+        POP SP, R2
+        POP Sp, R1 
+        EXIT SP, =2
+Recurse LOAD R1, ParamX(FP)     ; Load X
+        SUB R2, =1              ; Y = Y - 1
+
+        PUSH SP, =0             ; Reserve space for return value
+        PUSH SP, R1             ; Base parameter
+        PUSH SP, R2             ; Power parameter
+        CALL Pow        
+        POP SP, R2              ; Store return value in R2 (Y)
+        MUL R2, R1              ; Y *= X
+
+        STORE R2, RetVal(FP)
+
+        POP SP, R2
+        POP SP, R1
+        EXIT SP, =2

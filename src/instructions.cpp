@@ -6,11 +6,10 @@
 
 static tsl::robin_map<u8, std::string_view> &instr_name_table() {
     static auto table = tsl::robin_map<u8, std::string_view>{
-        { u8(InstructionType::NOP), "NOP" },
-
         { u8(InstructionType::STORE), "STORE" },
         { u8(InstructionType::LOAD), "LOAD" },
-        { u8(InstructionType::IN), "IN" },
+
+        { u8(InstructionType::IN),  "IN" },
         { u8(InstructionType::OUT), "OUT" },
         
         { u8(InstructionType::ADD), "ADD" },
@@ -18,15 +17,36 @@ static tsl::robin_map<u8, std::string_view> &instr_name_table() {
         { u8(InstructionType::MUL), "MUL" },
         { u8(InstructionType::DIV), "DIV" },
         { u8(InstructionType::MOD), "MOD" },
-        
+
+        { u8(InstructionType::EXT_FADD), "EXT_FADD" },
+        { u8(InstructionType::EXT_FSUB), "EXT_FSUB" },
+        { u8(InstructionType::EXT_FMUL), "EXT_FMUL" },
+        { u8(InstructionType::EXT_FDIV), "EXT_FDIV" },
+        { u8(InstructionType::EXT_FMOD), "EXT_FMOD" },
+
+        { u8(InstructionType::EXT_ITOF), "EXT_ITOF" },
+        { u8(InstructionType::EXT_FTOI), "EXT_FTOI" },
+
+        { u8(InstructionType::EXT_SQRTF), "EXT_SQRTF" },
+        { u8(InstructionType::EXT_RSQRTF), "EXT_RSQRTF" },
+        { u8(InstructionType::EXT_SINF), "EXT_SINF" },
+        { u8(InstructionType::EXT_COSF), "EXT_COSF" },
+        { u8(InstructionType::EXT_TANF), "EXT_TANF" },
+        { u8(InstructionType::EXT_ASINF), "EXT_ASINF" },
+        { u8(InstructionType::EXT_ACOSF), "EXT_ACOSF" },
+        { u8(InstructionType::EXT_ATANF), "EXT_ATANF" },
+        { u8(InstructionType::EXT_ABSF), "EXT_ABSF" },
+        { u8(InstructionType::EXT_LOG2F), "EXT_LOG2F" },
+        { u8(InstructionType::EXT_LOG10F), "EXT_LOG10F" },
+        { u8(InstructionType::EXT_LNF), "EXT_LNF" },
+
         { u8(InstructionType::AND), "AND" },
         { u8(InstructionType::OR), "OR" },
         { u8(InstructionType::XOR), "XOR" },
         { u8(InstructionType::SHL), "SHL" },
         { u8(InstructionType::SHR), "SHR" },
-        { u8(InstructionType::NOT), "NOT" },
         { u8(InstructionType::SHRA), "SHRA" },
-        
+
         { u8(InstructionType::COMP), "COMP" },
 
         { u8(InstructionType::JUMP), "JUMP" },
@@ -52,9 +72,9 @@ static tsl::robin_map<u8, std::string_view> &instr_name_table() {
         { u8(InstructionType::POPR), "POPR" },
 
         { u8(InstructionType::SVC), "SVC" },
-        { u8(InstructionType::IRET), "IRET" }, // Not officially part of the language  
+        { u8(InstructionType::EXT_IRET), "EXTRET" }, // Not officially part of the language  
 
-        { u8(InstructionType::HALT), "HALT" }, // Not officially part of the language
+        { u8(InstructionType::EXT_HALT), "EXT_HALT" }, // Not officially part of the language
     };
     return table;
 }
@@ -64,41 +84,47 @@ std::string_view instruction_name(InstructionType type) {
     if (auto it = tbl.find(static_cast<u8>(type)); it != tbl.end()) {
         return it->second;
     }
-    return "<unknown>";
+    return "{unknown}";
 }
 
-static void print_register(Register reg) {
-    if (R0 <= reg && reg <= R7) std::printf("R%d", (int)reg);
-    else std::printf("PC");
+std::string_view register_name(Register reg) {
+    switch(reg) {
+        case Register::R0: return "R0";
+        case Register::R1: return "R1";
+        case Register::R2: return "R2";
+        case Register::R3: return "R3";
+        case Register::R4: return "R4";
+        case Register::R5: return "R5";
+        case Register::R6: return "SP (R6)";
+        case Register::R7: return "FP (R7)";
+        case Register::EXT_ZR: return "ZR";
+        default: return "{??}";
+    }
 }
 
-void Instruction::debug_print(const char *end) const {
-    //std::printf("<");
-
+void debug_print(u32 ins, const char *end) {
     // Instruction name
     auto &tbl = instr_name_table();
-    if (auto it = tbl.find(static_cast<u8>(this->opcode)); it != tbl.end()) {
+    auto opcode = decode_opcode(ins);
+    if (auto it = tbl.find(u8(opcode)); it != tbl.end()) {
         std::printf("%s", it->second.data());
     } else {
-        std::printf("UNKNOWN(%d)", (int)this->opcode);
+        std::printf("{??: %d)", (int)opcode);
     }
-
-    std::putc('\t', stdout);
 
     // Destination register
-    print_register(dst_reg());
+    std::printf("\t%s, ", register_name(Register(decode_dst(ins))).data());
 
-    std::printf(", ");
-
-    auto src = src_reg();
-    switch (address_mode()) {
-        case AddressingMode::INDEXED_IMMEDIATE: std::putc('=', stdout); break;
-        case AddressingMode::INDEXED_DIRECT: break;
-        case AddressingMode::INDEXED_INDIRECT: std::putc('@', stdout); break;
+    auto src = decode_src(ins);
+    switch (AddressMode(decode_addrm(ins))) {
+        case AddressMode::IMMEDIATE: std::putc('=', stdout); break;
+        case AddressMode::REGISTER: break;
+        case AddressMode::DIRECT: break;
+        case AddressMode::INDIRECT: std::putc('@', stdout); break;
     }
-    std::printf("%d(", address);
-    print_register(src);
-    std::printf(")%s", end);
-
-    //std::printf(">");
+    std::printf("%d(%s)%s", 
+        decode_value(ins),
+        register_name(Register(src)).data(),
+        end
+    );
 }

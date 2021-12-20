@@ -1,0 +1,38 @@
+
+Anna       dc 10
+Elsa       dc 20
+; Funktio(x,y)=x*y+i*j
+paluuarvo  equ -4
+x          equ -3
+y          equ -2
+i          equ 1
+j          equ 2
+           
+           load r1, =1          
+           load r2, =2
+; Kutsutaan: Funktio(Anna, Elsa)
+           push sp, =0
+           push sp, Anna ; "x"
+           push sp, Elsa ; "y"
+           call Funktio
+           pop sp, r3
+           out r3, =crt
+           svc sp, =halt
+
+
+Funktio    push sp, =4 ; "i"
+           push sp, =5 ; "j"
+           push sp, r1
+           push sp, r2
+
+           load r1, x(fp)
+           mul r1, y(fp)
+           load r2, i(fp)
+           mul r2, j(fp)
+           add r1, r2
+           store r1, paluuarvo(fp)
+
+           pop sp, r2
+           pop sp, r1
+           sub sp, =2
+           exit sp, =2

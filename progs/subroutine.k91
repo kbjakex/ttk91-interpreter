@@ -1,0 +1,41 @@
+
+; Subroutine test
+
+; Main program asks for an integer N from the user
+; and calls subroutine Fib with this number as its parameter,
+; which then returns the Nth fibonacci number
+
+ParamN EQU -2
+RetVal EQU -3
+
+Main    IN R1, =KBD
+
+        PUSH SP, =0     ; Reserve space for return value
+        PUSH SP, R1     ; Push parameter to stack
+        CALL Fib 
+        POP SP, R1      ; Pop return value from stack
+
+        OUT R1, =CRT    ; Display value.
+        SVC SP, =HALT
+
+Fib     PUSHR SP
+
+        LOAD R1, =0     ; Set loop variable i = 0
+        LOAD R2, =0
+        LOAD R3, =1
+
+        LOAD R4, ParamN(FP)
+
+Loop    LOAD R5, R3
+
+        ADD R3, R2
+        LOAD R2, R5
+
+        ADD R1, =1
+        COMP R1, R4
+        JNEQU Loop
+
+        STORE R3, RetVal(FP)
+
+        POPR SP
+        exit sp, =1
