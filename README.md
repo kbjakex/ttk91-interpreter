@@ -15,7 +15,7 @@ Type `ttkc <filename.k91> [option(s)]` to compile & execute a ttk91 file, such a
 Available options:
 * `-i`/`--benchmark-iterations=<integer>`: The interpreter has a built-in benchmarking system that works by running the entire bytecode program several times, measuring the total time elapsed for all of the iterations, and computing the average time per run. This option sets the number of iterations. As a rule of thumb, to minimize the effects of fluctuation, try to get the total time at least over 10 seconds and consider closing other applications.
 * `-bio`/`--bench-io[=<true/1/false/0>]`: The speed at which the interpreter prints integers is probably not of interest, so while benchmarking (benchmark iterations > 1), all printing is suppressed by default. Use `-bio=1` to re-enable printing.
-* `-d`/`--dry[=<true/1/false/0>]`: Compiles the file but does not interpret the bytecode.
+* `-d`/`--dry[=<true/1/false/0>]`: Compiles the file but does not interpret the bytecode. Useful for checking for syntax correctness without running. Note that while the code could be compiled to a binary format, and the word "compiling" might imply doing that, this does not actually produce an output file.
 * `-ss`/`--stack-size=<integer>`: Sets the size of the stack for the program. Defaults to 1 MiB.
 
 Run `ttkc --help` for an up-to-date list.
